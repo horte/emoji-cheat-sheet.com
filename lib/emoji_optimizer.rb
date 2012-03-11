@@ -84,7 +84,7 @@ module Emoji
   
     def css_sprite_mapping index
       offset = @sprite.offset index
-      "#e_#{index+1} { background-position:-#{offset}px 0; }" 
+      "#e_%d { background-position:-%dpx -%dpx; }" % [ index+1, offset[:x], offset[:y] ]
     end
 
     def sprite_path
@@ -134,20 +134,24 @@ module Emoji
       @size    = size
       @padding = padding
     end
-
+    
     def offset index
-      ((@size + @padding * 2) * index) + @padding      
+      {
+        x: x_offset(index),
+        y: y_offset(index)
+      }
     end
-
+    
     def generate path
       args = {
-              tile: 'x1',
-          geometry: "#{@size}x#{@size}+#{@padding}",
+              tile: "x#{rows}",
+          geometry: "#{@size}x#{@size}+#{@padding}+#{@padding}",
              depth: '8',
         background: 'transparent'
       }.map { |k, v| "-#{k} #{v}" }.join(' ')
       system "montage %s %s %s" % [ @files.join(' '), args, path ]
       optimize!(path)
+      system "identify #{path}"
     end
   
     private
@@ -160,6 +164,24 @@ module Emoji
       else
         puts "No optimization of generated sprite will be done. Install optipng if you want it."
       end
+    end
+
+    def x_offset index
+      offset = ((@size + @padding * 2) * index) + @padding
+      offset - cols * (y_offset(index) - @padding)
+    end
+    
+    def y_offset index
+      height = (@size + @padding * 2) 
+      (height * (index.to_f / cols.to_f).floor) + @padding
+    end
+    
+    def rows
+      @rows ||= Math.sqrt(@files.size).ceil
+    end
+
+    def cols
+      @cols ||= (@files.size.to_f / rows.to_f).ceil 
     end
 
   end
